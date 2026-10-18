@@ -49,7 +49,7 @@ This launcher has a very strict and intentionally limited feature set.
 ### What is not included
 - No developer mode
 - No mod loading
-- No experimental or legacy features
+- No general compatibility guarantees for unverified experimental or legacy client builds
 - No support for deprecated client branches
 
 ### What This Launcher Can Do
