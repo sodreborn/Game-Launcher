@@ -17,6 +17,8 @@ static class LaunchOptions
     public static Option<string> ProductName = new("--product", () => "wow");
     public static Option<string> CdnRegion = new("--region", () => "EU");
     public static Option<string> BgsPortal = new("--portal");
+    public static Option<bool> Experimental70003 = new("--experimental-70003",
+        "Opt-in diagnostic profile for the verified Classic Era 1.15.9.70003 executable. Requires a compatible local server; world entry is still incomplete.");
 
     // Game command line options.
     public static Option<string> GameConfig = new("-config", () => "Config.wtf");
@@ -40,6 +42,7 @@ static class LaunchOptions
         ProductName,
         CdnRegion,
         BgsPortal,
+        Experimental70003,
         GameConfig,
     };
 

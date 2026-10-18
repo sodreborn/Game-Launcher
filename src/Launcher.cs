@@ -239,6 +239,13 @@ static class Launcher
     {
         // Build the version URL from the game binary build.
         var clientVersion = GetVersionValueFromClient(appPath);
+        bool experimental70003 = commandLineResult.GetValueForOption(LaunchOptions.Experimental70003);
+        if (experimental70003)
+        {
+            ClassicEra70003.ValidateImage(_binaryData, clientVersion, commandLineResult.GetValueForOption(LaunchOptions.Version));
+            Console.WriteLine("Experimental 70003 diagnostic mode: executable SHA-256 verified.");
+            Console.WriteLine("Requires a compatible 70003 server and trusted TLS. Login can require a retry; world entry remains incomplete.");
+        }
 
         Console.ForegroundColor = ConsoleColor.Yellow;
         Console.WriteLine($"Client Build {clientVersion}");
@@ -332,6 +339,9 @@ static class Launcher
                     // Refresh the client data before patching.
                     memory.RefreshMemoryData((int)appDataLength);
 
+                    if (experimental70003)
+                        ClassicEra70003.ValidateMemory(memory.Data);
+
                     // Custom CDN related patches.
                     if ((hasCustomVersionUrl && hasCustomCdnUrl))
                     {
@@ -361,15 +371,45 @@ static class Launcher
                     }
 
                     // Wait for all direct memory patch tasks to complete.
-                    Task.WaitAll(
-                    [
-                        memory.PatchMemory(Patterns.Common.ConnectToModulus, Patches.Common.RsaModulus, "ConnectTo RsaModulus"),
-                        memory.PatchMemory(Patterns.Common.CryptoEdPublicKey, Patches.Common.CryptoEdPublicKey, "GameCrypto Ed25519 PublicKey"),
-                        memory.PatchMemory(Patterns.Common.Portal, Patches.Common.Portal, "Login Portal"),
-                        memory.PatchMemory(Patterns.Windows.LauncherLogin, Patches.Windows.LauncherLogin, "Launcher Login Registry")
-                    ], CancellationTokenSource.Token);
+                    var patchTasks = new List<Task<bool>>();
+                    if (!experimental70003)
+                        patchTasks.Add(memory.PatchMemory(Patterns.Common.ConnectToModulus, Patches.Common.RsaModulus, "ConnectTo RsaModulus"));
+                    else
+                        Console.WriteLine("[ConnectTo RsaModulus] Legacy RSA patch omitted; a compatible 70003 server must supply the modern endpoint-vector redirect.");
+
+                    if (!experimental70003)
+                        patchTasks.Add(memory.PatchMemory(Patterns.Common.CryptoEdPublicKey,
+                            Patches.Common.CryptoEdPublicKey, "GameCrypto Ed25519 PublicKey"));
+                    patchTasks.Add(memory.PatchMemory(Patterns.Common.Portal, Patches.Common.Portal, "Login Portal", printInfo: experimental70003 ? true : null));
+                    patchTasks.Add(memory.PatchMemory(Patterns.Windows.LauncherLogin, Patches.Windows.LauncherLogin, "Launcher Login Registry", printInfo: experimental70003 ? true : null));
+                    Task.WaitAll(patchTasks.ToArray(), CancellationTokenSource.Token);
+                    if (patchTasks.Any(task => !task.Result))
+                        throw new InvalidOperationException("A required client patch failed.");
+
+                    if (experimental70003)
+                    {
+                        foreach (var (pattern, patch) in new[]
+                        {
+                            (Patterns.Common.Portal, Patches.Common.Portal),
+                            (Patterns.Windows.LauncherLogin, Patches.Windows.LauncherLogin)
+                        })
+                        {
+                            nint address = (nint)memory.Data.FindPattern(pattern, memory.BaseAddress);
+                            if (memory.Read(address, patch.Length)?.SequenceEqual(patch) != true)
+                                throw new InvalidOperationException("Diagnostic patch readback verification failed.");
+                        }
+                        Console.WriteLine("Portal and registry patches verified by reading client memory. Regional public key will be verified after the certificate store initializes.");
+                        Console.WriteLine($"Diagnostic client process ID: {processInfo.ProcessId}");
+                    }
 
                     NativeWindows.NtResumeProcess(processInfo.ProcessHandle);
+
+                    if (experimental70003)
+                    {
+                        ClassicEra70003.MonitorRegionKey(processInfo.ProcessHandle, gameProcess);
+                        Console.WriteLine("Client closed; region-key monitor stopped.");
+                        return true;
+                    }
 
                     Console.WriteLine("Done :) ");
 
