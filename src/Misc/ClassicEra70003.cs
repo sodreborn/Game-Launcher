@@ -31,6 +31,27 @@ static partial class ClassicEra70003
     public static readonly byte[] ServerPublicKey = Convert.FromHexString("02596F0D0C061A8B30745988FD72C59E29EC367FB0F341F28E0F08D037BAFC69");
     public const int RegionTableLength = 12 * 40;
 
+    public const int TutorialSourceSlotRva = 0x3CF76D0;
+    public const int TutorialBridgeSlotRva = 0x3CF6428;
+    public const int TutorialInitializerRva = 0x1AB6930;
+
+    public static void ValidateTutorialBridgeOptions(bool experimental, bool bridge, string portal)
+    {
+        if (bridge && (!experimental || !string.Equals(portal, "projectsod.duckdns.org", StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException("The tutorial bridge requires --experimental-70003 and the local Project SOD portal.");
+    }
+
+    public static bool ValidateTutorialBinding(ulong imageBase, ulong source, ulong target)
+    {
+        if (source == 0)
+            return false; // Native initialization/cleanup has not installed the handler.
+        if (source != checked(imageBase + TutorialInitializerRva))
+            throw new InvalidOperationException("Unexpected native tutorial initializer. No callback changed.");
+        if (target != 0 && target != source)
+            throw new InvalidOperationException("Tutorial bridge destination is occupied. No callback changed.");
+        return true;
+    }
+
     public static bool IsRegionKeyTable(ReadOnlySpan<byte> data)
     {
         if (data.Length != RegionTableLength)

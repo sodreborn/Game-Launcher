@@ -20,8 +20,10 @@ realm after that message. This initialization/retry requirement remains a diagno
 The legacy RSA modulus pattern is absent in this executable. This mode leaves that patch unimplemented;
 the matching 70003 server uses a modern endpoint-vector world redirect instead. Local testing has
 reached realm selection, usable character creation/selection, instance authentication and world loading.
-Login remains intermittent (including WOW51900317 before the realm list), and entering the world is
-not yet complete. This is an opt-in compatibility profile, not production-ready server support.
+The additional Project SOD tutorial bootstrap bridge below has also been tested entering Northshire,
+rotating the camera, and opening/dismissing a native tutorial, with normal world updates isolated.
+Login remains intermittent (including WOW51900317 before the realm list), and normal gameplay is
+unverified. This is an opt-in compatibility profile, not production-ready server support.
 Other clients and launches without the flag retain the original patch requirements.
 
 Example (use your own server host with a valid trusted TLS certificate):
@@ -36,6 +38,29 @@ The tests use synthetic patterns and regional tables. To also check a local exec
 
 ```powershell
 dotnet run --project tests/ClassicEra70003.Tests -c Release -- 'C:\Games\World of Warcraft\_classic_era_\WowClassic.exe'
+```
+
+### Optional Project SOD tutorial bootstrap bridge
+
+`--experimental-70003-tutorial-bridge` additionally requires the verified 70003 profile and
+`--portal projectsod.duckdns.org`. This is an explicit local protocol compatibility bridge,
+not a confirmed standard mapping for the client's tutorial packet.
+
+The server sends eight uint32 tutorial flags through the raw-buffer decoder at wire `0x460268`.
+While that decoder's callback is empty, the launcher binds it to the client's already registered,
+exact-version native tutorial initializer. The source pointer, destination state and write readback
+are checked. Once the native tutorial array exists, bridge monitoring ends: world initialization
+registers a different native callback in that slot, which must remain untouched. No executable code
+bytes or tutorial-array contents are written by the bridge.
+
+The matching server must send this message only during initial account setup, before character
+selection, and omit the duplicate after the player exists. Keep the client at character selection
+until the launcher reports `Native tutorial array initialized`. Use a fresh client for each
+diagnostic run. The earlier Lua tutorial-guard addon is insufficient for native camera input and
+should remain disabled. Other gameplay opcodes and update messages are still under validation.
+
+```powershell
+& '.\Burralis Game Launcher.exe' --experimental-70003 --experimental-70003-tutorial-bridge --version ClassicEra --path 'C:\Games\World of Warcraft\_classic_era_' -config ConfigSOD.wtf --portal projectsod.duckdns.org
 ```
 
 ### License & Contributions

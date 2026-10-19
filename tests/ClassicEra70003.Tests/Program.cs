@@ -47,6 +47,18 @@ Checks("truncated certificate table rejected", !ClassicEra70003.IsRegionKeyTable
 ClassicEra70003.ServerPublicKey.CopyTo(table, 4);
 Checks("only the intended local region-1 replacement accepted", ClassicEra70003.IsRegionKeyTable(table));
 
+ClassicEra70003.ValidateTutorialBridgeOptions(false, false, null);
+ClassicEra70003.ValidateTutorialBridgeOptions(true, true, "projectsod.duckdns.org");
+Rejects("tutorial bridge requires verified profile", () => ClassicEra70003.ValidateTutorialBridgeOptions(false, true, "projectsod.duckdns.org"));
+Rejects("tutorial bridge rejects another portal", () => ClassicEra70003.ValidateTutorialBridgeOptions(true, true, "example.org"));
+const ulong testBase = 0x140000000;
+ulong initializer = testBase + ClassicEra70003.TutorialInitializerRva;
+Checks("tutorial bridge waits for native registration", !ClassicEra70003.ValidateTutorialBinding(testBase, 0, 0));
+Checks("tutorial bridge accepts the exact registered initializer", ClassicEra70003.ValidateTutorialBinding(testBase, initializer, 0));
+Checks("tutorial bridge accepts its own existing binding", ClassicEra70003.ValidateTutorialBinding(testBase, initializer, initializer));
+Rejects("tutorial bridge rejects another initializer", () => ClassicEra70003.ValidateTutorialBinding(testBase, initializer + 1, 0));
+Rejects("tutorial bridge preserves an occupied callback", () => ClassicEra70003.ValidateTutorialBinding(testBase, initializer, initializer + 1));
+
 if (args.Length == 1)
 {
     byte[] image = File.ReadAllBytes(args[0]);

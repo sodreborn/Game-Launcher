@@ -240,6 +240,9 @@ static class Launcher
         // Build the version URL from the game binary build.
         var clientVersion = GetVersionValueFromClient(appPath);
         bool experimental70003 = commandLineResult.GetValueForOption(LaunchOptions.Experimental70003);
+        bool tutorialBridge70003 = commandLineResult.GetValueForOption(LaunchOptions.TutorialBridge70003);
+        ClassicEra70003.ValidateTutorialBridgeOptions(experimental70003, tutorialBridge70003,
+            commandLineResult.GetValueForOption(LaunchOptions.BgsPortal));
         if (experimental70003)
         {
             ClassicEra70003.ValidateImage(_binaryData, clientVersion, commandLineResult.GetValueForOption(LaunchOptions.Version));
@@ -406,7 +409,7 @@ static class Launcher
 
                     if (experimental70003)
                     {
-                        ClassicEra70003.MonitorRegionKey(processInfo.ProcessHandle, gameProcess);
+                        ClassicEra70003.MonitorRegionKey(processInfo.ProcessHandle, gameProcess, tutorialBridge70003);
                         Console.WriteLine("Client closed; region-key monitor stopped.");
                         return true;
                     }

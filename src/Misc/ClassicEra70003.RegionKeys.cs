@@ -68,13 +68,29 @@ static partial class ClassicEra70003
         return found.ToList();
     }
 
-    public static void MonitorRegionKey(nint processHandle, Process process)
+    public static void MonitorRegionKey(nint processHandle, Process process, bool tutorialBridge = false)
     {
         Console.WriteLine("70003 region-key monitor active. The first realm attempt initializes its certificate store and may disconnect; retry after the key-ready message.");
         nint table = 0;
         bool announced = false;
+        bool tutorialAnnounced = false;
+        bool tutorialInitialized = false;
+        nint imageBase = tutorialBridge ? process.MainModule.BaseAddress : 0;
         while (!process.HasExited)
         {
+            if (tutorialBridge && !tutorialInitialized && IsNativeTutorialStateInitialized(processHandle, imageBase))
+            {
+                // This is a bootstrap bridge only. The game installs another
+                // native handler in this slot during world initialization;
+                // never inspect or replace that later registration.
+                tutorialInitialized = true;
+                Console.WriteLine("Native tutorial array initialized. Bootstrap bridge monitoring complete; later client handlers remain unchanged.");
+            }
+            if (tutorialBridge && !tutorialInitialized && BindNativeTutorialInitializer(processHandle, imageBase) && !tutorialAnnounced)
+            {
+                Console.WriteLine("70003 tutorial bridge ready and readback verified (wire 0x460268, eight uint32 flags). Native tutorial initialization must still be verified before Enter World.");
+                tutorialAnnounced = true;
+            }
             byte[] before = table == 0 ? null : ReadTable(processHandle, table);
             if (before == null || !IsRegionKeyTable(before))
             {

@@ -19,6 +19,8 @@ static class LaunchOptions
     public static Option<string> BgsPortal = new("--portal");
     public static Option<bool> Experimental70003 = new("--experimental-70003",
         "Opt-in diagnostic profile for the verified Classic Era 1.15.9.70003 executable. Requires a compatible local server; world entry is still incomplete.");
+    public static Option<bool> TutorialBridge70003 = new("--experimental-70003-tutorial-bridge",
+        "Local Project SOD diagnostic: bind the 32-byte tutorial packet to the verified native initializer. Requires --experimental-70003.");
 
     // Game command line options.
     public static Option<string> GameConfig = new("-config", () => "Config.wtf");
@@ -43,6 +45,7 @@ static class LaunchOptions
         CdnRegion,
         BgsPortal,
         Experimental70003,
+        TutorialBridge70003,
         GameConfig,
     };
 
